@@ -15,6 +15,7 @@ pygame.display.set_icon(pygame.image.load("./images/favicon.png"))
 
 font = pygame.font.Font(None,20)
 font2 = pygame.font.Font(None,100)
+font3 = pygame.font.Font(None,40)
 copyright = font.render('© 2025 by Jannis und Timo', True, (150,150,150))
 gewonnen = font2.render('GEWONNEN!', True, (255,255,255))
 
@@ -40,8 +41,9 @@ font = pygame.font.Font(None,50)
 schliessen = False
 schliessenindex = 0
 
-level = 9
+level = 0
 durchgespielt = False
+versuche = 1
 
 playerx = 20
 playery = 300
@@ -52,33 +54,30 @@ playerspeedy = 0.5
 jumphight = 200
 
 def is_on_top(player_rect, platform_rect):
-    # Prüft, ob der Spieler mit den Füßen auf der Plattform steht
     return (
-        player_rect.bottom <= platform_rect.top + 10 and  # max. 10px Toleranz
-        player_rect.bottom >= platform_rect.top - 10 and
-        player_rect.right > platform_rect.left + 5 and
-        player_rect.left < platform_rect.right - 5
+        player_rect.bottom == platform_rect.top and
+        player_rect.right > platform_rect.left and
+        player_rect.left < platform_rect.right
     )
 
-def fade_to_black_and_back():
+def fade_to_black():
     fade_surface = pygame.Surface((width, height))
     fade_surface.fill((0, 0, 0))
-    # Fade in (schwarz wird eingeblendet)
     for alpha in range(0, 256, 16):
         fade_surface.set_alpha(alpha)
         screen.blit(fade_surface, (0, 0))
         pygame.display.flip()
-        pygame.time.delay(500 // (256 // 16))  # ca. 500ms gesamt
-    # 500ms komplett schwarz
+        pygame.time.delay(500 // (256 // 16))
     fade_surface.set_alpha(255)
     screen.blit(fade_surface, (0, 0))
     pygame.display.flip()
-    pygame.time.delay(500)
-    # Fade out (schwarz wird ausgeblendet)
+
+def fade_from_black():
+    fade_surface = pygame.Surface((width, height))
+    fade_surface.fill((0, 0, 0))
     for alpha in range(255, -1, -16):
         fade_surface.set_alpha(alpha)
         screen.blit(background, (0, 0))
-        # Plattformen und Spieler nochmal zeichnen, damit sie sichtbar werden
         screen.blit(p1, (positions[level][0][0], positions[level][0][1]))
         screen.blit(p2, (positions[level][1][0], positions[level][1][1]))
         screen.blit(p3, (positions[level][2][0], positions[level][2][1]))
@@ -89,13 +88,14 @@ def fade_to_black_and_back():
         screen.blit(copyright, (0, 700))
         screen.blit(fade_surface, (0, 0))
         pygame.display.flip()
-        pygame.time.delay(500 // (256 // 16))  # ca. 500ms gesamt
+        pygame.time.delay(500 // (256 // 16))
 
 running = True
 while running:
-    #screen.fill((0,0,255))
     screen.blit(background, (0, 0))
 
+    leveldisplay = font3.render(f'Level: {level + 1}', True, (255,255,255))
+    versuchedisplay = font3.render(f'Versuche: {versuche}', True, (255,255,255))
     screen.blit(p1, (positions[level][0][0], positions[level][0][1]))
     screen.blit(p2, (positions[level][1][0], positions[level][1][1]))
     screen.blit(p3, (positions[level][2][0], positions[level][2][1]))
@@ -104,8 +104,9 @@ while running:
     screen.blit(p6, (positions[level][5][0], positions[level][5][1]))
     screen.blit(player, (playerx, playery))
     screen.blit(copyright, (0, 700))
+    screen.blit(leveldisplay, (20,20))
+    screen.blit(versuchedisplay, (1090,20))
 
-    # Rects für Collision Detection erstellen
     player_rect = player.get_rect(topleft=(playerx, playery))
     p1_rect = p1.get_rect(topleft=(positions[level][0][0], positions[level][0][1]))
     p2_rect = p2.get_rect(topleft=(positions[level][1][0], positions[level][1][1]))
@@ -114,7 +115,6 @@ while running:
     p5_rect = p5.get_rect(topleft=(positions[level][4][0], positions[level][4][1]))
     p6_rect = p6.get_rect(topleft=(positions[level][5][0], positions[level][5][1]))
 
-    # Tasteneingaben außerhalb der Event-Schleife abfragen
     keys = pygame.key.get_pressed()
     if keys[pygame.K_SPACE] and falling == False:
         playerjump = True
@@ -125,9 +125,6 @@ while running:
     if keys[pygame.K_d] and playerx < 1207:
         playerx += playerspeedx
     
-    #if keys[pygame.K_ESCAPE]:
-    #    running = False
-
     if playerjump:
         if playerjumpindex < (jumphight/playerspeedy):
             playery -= playerspeedy
@@ -158,14 +155,22 @@ while running:
             falling = True
             playery += 1
     if playery > height:
+        fade_to_black()
         playerx = 20
         playery = 300
+        versuche += 1
+        fade_from_black()
 
     if playerx >= 1207:
-        fade_to_black_and_back()
+        fade_to_black()
+        pygame.time.delay(500)
         if level < 9:
             level += 1
+            playerx = 20
+            playery = 300
+            fade_from_black()
         else:
+            fade_from_black()
             screen.blit(background, (0,0))
             screen.blit(gewonnen, (400,100))
             screen.blit(player, (600, 300))
@@ -173,10 +178,6 @@ while running:
             pygame.display.flip()
             pygame.time.delay(3000)
             running = False
-        playerx = 20
-        playery = 300
-
-
 
     for event in pygame.event.get():
         if schliessen:
